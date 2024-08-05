@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>뱀파이어 서바이벌 웹 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-container {
+            width: 800px;
+            height: 600px;
+            border: 2px solid #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #player {
+            width: 20px;
+            height: 20px;
+            background-color: #00f;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .enemy {
+            width: 15px;
+            height: 15px;
+            background-color: #f00;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .strong-enemy {
+            width: 20px;
+            height: 20px;
+            background-color: #800000;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .bullet {
+            width: 5px;
+            height: 5px;
+            background-color: #ff0;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        #score, #level, #hp, #exp {
+            position: absolute;
+            left: 10px;
+        }
+
+        #score { top: 10px; }
+        #level { top: 30px; }
+        #hp { top: 50px; }
+        #exp { top: 70px; }
+
+        #start-screen, #level-up-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #start-screen h1, #level-up-screen h2 {
+            margin-bottom: 20px;
+        }
+
+        #start-screen p {
+            margin: 10px 0;
+        }
+
+        #start-button, .buff-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #level-up-screen {
+            display: none;
+        }
+
+        .damage-text {
+            position: absolute;
+            color: #ff0;
+            font-weight: bold;
+            font-size: 14px;
+            pointer-events: none;
+            animation: fadeOut 0.5s forwards;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="score">점수: <span id="score-value">0</span></div>
+        <div id="level">레벨: <span id="level-value">1</span></div>
+        <div id="hp">HP: <span id="hp-value">100</span></div>
+        <div id="exp">EXP: <span id="exp-value">0</span> / <span id="exp-next">100</span></div>
+        <div id="start-screen">
+            <h1>뱀파이어 서바이벌 웹 게임</h1>
+            <p>WASD 또는 화살표 키로 이동</p>
+            <button id="start-button">게임 시작</button>
+        </div>
+        <div id="level-up-screen">
+            <h2>레벨 업!</h2>
+            <p>버프를 선택하세요:</p>
+            <button class="buff-button" id="attack-speed-buff">공격 속도 증가</button>
+            <button class="buff-button" id="attack-power-buff">공격력 증가</button>
+            <button class="buff-button" id="bullet-speed-buff">총알 속도 증가</button>
+            <button class="buff-button" id="move-speed-buff">이동 속도 증가</button>
+            <button class="buff-button" id="bullet-penetration-buff" style="display: none;">총알 관통</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const scoreElement = document.getElementById('score-value');
+        const levelElement = document.getElementById('level-value');
+        const hpElement = document.getElementById('hp-value');
+        const expElement = document.getElementById('exp-value');
+        const expNextElement = document.getElementById('exp-next');
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const levelUpScreen = document.getElementById('level-up-screen');
+        const attackSpeedBuff = document.getElementById('attack-speed-buff');
+        const attackPowerBuff = document.getElementById('attack-power-buff');
+        const bulletSpeedBuff = document.getElementById('bullet-speed-buff');
+        const moveSpeedBuff = document.getElementById('move-speed-buff');
+        const bulletPenetrationBuff = document.getElementById('bullet-penetration-buff');
+
+        let playerX = 390;
+        let playerY = 290;
+        let score = 0;
+        let level = 1;
+        let hp = 100;
+        let exp = 0;
+        let expNext = 100;
+        let enemies = [];
+        let bullets = [];
+        let keys = {};
+        let attackSpeed = 500;
+        let bulletSpeed = 2;
+        let moveSpeed = 1.5;
+        let attackPower = 10;
+        let bulletPenetration = 0;
+        let gameRunning = false;
+
+        function movePlayer() {
+            if ((keys['w'] || keys['arrowup']) && playerY > 0) playerY -= moveSpeed;
+            if ((keys['s'] || keys['arrowdown']) && playerY < 580) playerY += moveSpeed;
+            if ((keys['a'] || keys['arrowleft']) && playerX > 0) playerX -= moveSpeed;
+            if ((keys['d'] || keys['arrowright']) && playerX < 780) playerX += moveSpeed;
+
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+        }
+
+        function createEnemy() {
+            const enemy = document.createElement('div');
+            const isStrongEnemy = level >= 5 && Math.random() < 0.3; // 30% chance of stronger enemies from level 5
+            if (isStrongEnemy) {
+                enemy.classList.add('strong-enemy');
+                enemy.hp = 20 + level * 5;
+            } else {
+                enemy.classList.add('enemy');
+                enemy.hp = 10 + level * 2;
+            }
+            
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+
+            switch(side) {
+                case 0: x = Math.random() * 800; y = -15; break;
+                case 1: x = 800; y = Math.random() * 600; break;
+                case 2: x = Math.random() * 800; y = 600; break;
+                case 3: x = -15; y = Math.random() * 600; break;
+            }
+
+            enemy.style.left = `${x}px`;
+            enemy.style.top = `${y}px`;
+            gameContainer.appendChild(enemy);
+            enemies.push({element: enemy, x: x, y: y, hp: enemy.hp});
+        }
+
+        function moveEnemies() {
+            enemies.forEach((enemy, index) => {
+                const dx = playerX - enemy.x;
+                const dy = playerY - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                enemy.x += dx / distance * 0.5;
+                enemy.y += dy / distance * 0.5;
+                
+                enemy.element.style.left = `${enemy.x}px`;
+                enemy.element.style.top = `${enemy.y}px`;
+                
+                if (distance < 20) {
+                    hp -= 10;
+                    hpElement.textContent = hp;
+                    if (hp <= 0) {
+                        gameOver();
+                    }
+                }
+            });
+        }
+
+        function createBullet() {
+            if (enemies.length === 0) return;
+
+            let closestEnemy = enemies[0];
+            let closestDistance = Infinity;
+
+            enemies.forEach(enemy => {
+                const dx = enemy.x - playerX;
+                const dy = enemy.y - playerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestEnemy = enemy;
+                }
+            });
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            bullet.style.left = `${playerX + 10}px`;
+            bullet.style.top = `${playerY + 10}px`;
+            gameContainer.appendChild(bullet);
+
+            const angle = Math.atan2(closestEnemy.y - playerY, closestEnemy.x - playerX);
+            bullets.push({element: bullet, x: playerX + 10, y: playerY + 10, angle: angle, penetrations: bulletPenetration});
+        }
+
+        function moveBullets() {
+            bullets.forEach((bullet, index) => {
+                bullet.x += Math.cos(bullet.angle) * bulletSpeed;
+                bullet.y += Math.sin(bullet.angle) * bulletSpeed;
+                
+                bullet.element.style.left = `${bullet.x}px`;
+                bullet.element.style.top = `${bullet.y}px`;
+
+                if (bullet.x < 0 || bullet.x > 800 || bullet.y < 0 || bullet.y > 600) {
+                    gameContainer.removeChild(bullet.element);
+                    bullets.splice(index, 1);
+                }
+            });
+        }
+
+        function createDamageText(x, y, damage) {
+            const damageText = document.createElement('div');
+            damageText.classList.add('damage-text');
+            damageText.textContent = damage;
+            damageText.style.left = `${x}px`;
+            damageText.style.top = `${y}px`;
+            gameContainer.appendChild(damageText);
+
+            setTimeout(() => {
+                gameContainer.removeChild(damageText);
+            }, 500);
+        }
+
+        function checkCollisions() {
+            bullets.forEach((bullet, bulletIndex) => {
+                enemies.forEach((enemy, enemyIndex) => {
+                    const dx = bullet.x - enemy.x;
+                    const dy = bullet.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 15) {
+                        enemy.hp -= attackPower;
+                        createDamageText(enemy.x, enemy.y, attackPower);
+                        if (enemy.hp <= 0) {
+                            gameContainer.removeChild(enemy.element);
+                            enemies.splice(enemyIndex, 1);
+                            score += enemy.element.classList.contains('strong-enemy') ? 20 : 10;
+                            scoreElement.textContent = score;
+                            gainExp(enemy.element.classList.contains('strong-enemy') ? 20 : 10);
+                        }
+                        if (bullet.penetrations > 0) {
+                            bullet.penetrations--;
+                        } else {
+                            gameContainer.removeChild(bullet.element);
+                            bullets.splice(bulletIndex, 1);
+                        }
+                    }
+                });
+            });
+        }
+
+        function gainExp(amount) {
+            exp += amount;
+            expElement.textContent = exp;
+            if (exp >= expNext) {
+                levelUp();
+            }
+        }
+
+        function levelUp() {
+            if (level < 20) {
+                level++;
+                levelElement.textContent = level;
+                exp -= expNext;
+                expNext = Math.floor(expNext * 1.2);
+                expElement.textContent = exp;
+                expNextElement.textContent = expNext;
+                if (level >= 3) {
+                    bulletPenetrationBuff.style.display = 'block';
+                }
+                showLevelUpScreen();
+            }
+        }
+
+        function showLevelUpScreen() {
+            gameRunning = false;
+            levelUpScreen.style.display = 'flex';
+        }
+
+        function hideLevelUpScreen() {
+            levelUpScreen.style.display = 'none';
+            gameRunning = true;
+            updateGame();
+        }
+
+        function updateGame() {
+            if (!gameRunning) return;
+
+            movePlayer();
+            moveEnemies();
+            moveBullets();
+            checkCollisions();
+            score++;
+            scoreElement.textContent = score;
+            
+            if (score % Math.max(100 - level * 4, 10) === 0) { // Reduce frequency initially, then increase
+                createEnemy();
+            }
+            
+            requestAnimationFrame(updateGame);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            alert(`게임 오버! 최종 점수: ${score}`);
+            location.reload();
+        }
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameRunning = true;
+            playerX = 390;
+            playerY = 290;
+            score = 0;
+            level = 1;
+            hp = 100;
+            exp = 0;
+            expNext = 100;
+            enemies = [];
+            bullets = [];
+            attackSpeed = 500;
+            bulletSpeed = 2;
+            moveSpeed = 1.5;
+            attackPower = 10;
+            bulletPenetration = 0;
+
+            player.style.left = `${playerX}px`;
+            player.style.top = `${playerY}px`;
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+            hpElement.textContent = hp;
+            expElement.textContent = exp;
+            expNextElement.textContent = expNext;
+
+            createEnemy();
+            shootInterval = setInterval(createBullet, attackSpeed);
+            updateGame();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        startButton.addEventListener('click', startGame);
+
+        attackSpeedBuff.addEventListener('click', () => {
+            attackSpeed = Math.max(100, attackSpeed - 50);
+            clearInterval(shootInterval);
+            shootInterval = setInterval(createBullet, attackSpeed);
+            hideLevelUpScreen();
+        });
+
+        attackPowerBuff.addEventListener('click', () => {
+            attackPower += 5;
+            hideLevelUpScreen();
+        });
+
+        bulletSpeedBuff.addEventListener('click', () => {
+            bulletSpeed += 0.5;
+            hideLevelUpScreen();
+        });
+
+        moveSpeedBuff.addEventListener('click', () => {
+            moveSpeed += 0.2;
+            hideLevelUpScreen();
+        });
+
+        bulletPenetrationBuff.addEventListener('click', () => {
+            bulletPenetration++;
+            hideLevelUpScreen();
+        });
+    </script>
+</body>
+</html>

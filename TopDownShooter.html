@@ -1,0 +1,751 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게임</title>
+    <style>
+        /* 스타일 정의 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            padding: 10px 0;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            padding: 10px 0;
+            position: fixed;
+            width: 100%;
+            bottom: 0;
+        }
+
+        h1, h3 {
+            margin: 0;
+        }
+
+        #instructions {
+            margin: 20px auto;
+            width: 60%;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #startButton {
+            font-size: 24px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 750px;
+            height: 750px;
+            background-color: black;
+            border: 1px solid #000;
+            margin: 20px auto;
+            display: none;
+        }
+
+        #player {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: yellow;
+            top: 350px;
+            left: 350px;
+        }
+
+        #hpDisplay, #scoreDisplay {
+            color: white;
+            position: absolute;
+        }
+
+        #hpDisplay {
+            top: 10px;
+            left: 10px;
+        }
+
+        #scoreDisplay {
+            top: 10px;
+            right: 10px;
+        }
+
+        #hpBarContainer, #expBarContainer {
+            position: absolute;
+            width: 100px;
+            height: 10px;
+            background-color: grey;
+        }
+
+        #hpBar {
+            width: 100%;
+            height: 100%;
+            background-color: green;
+        }
+
+        #expBar {
+            width: 0;
+            height: 100%;
+            background-color: blue;
+        }
+
+        #hpBarContainer {
+            top: 40px;
+            left: 10px;
+        }
+
+        #expBarContainer {
+            top: 70px;
+            left: 10px;
+        }
+
+        #winMessage {
+            color: white;
+            font-size: 48px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+
+        #joystick {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 100px;
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: none;
+        }
+
+        #joystickHandle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            top: 25px;
+            left: 25px;
+        }
+
+        #overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(128, 128, 128, 0.5);
+            z-index: 10;
+        }
+
+        #choiceContainer {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            background-color: darkorange;
+            padding: 20px;
+            border-radius: 10px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: red;
+            border: 2px solid darkred;
+            border-radius: 50%;
+        }
+
+        .hpBar {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background-color: green;
+            top: -10px;
+        }
+
+        .bullet {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border-radius: 50%;
+        }
+
+        .healthItem {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: green;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>게임 제목</h1>
+    </header>
+
+    <div id="instructions">
+        <h3>게임설명</h3>
+        <ul>
+            <li>1. <b>W</b> 키: 위로 이동</li>
+            <li>2. <b>A</b> 키: 왼쪽으로 이동</li>
+            <li>3. <b>S</b> 키: 아래로 이동</li>
+            <li>4. <b>D</b> 키: 오른쪽으로 이동</li>
+            <li>5. 적은 자동으로 공격됩니다</li>
+            <li>6. 점수가 5, 15, 30, 50, 75, 105일 때 업그레이드를 선택할 수 있습니다</li>
+            <li>7. 경험치 바가 가득 차면 레벨업하고 적의 공격력이 증가합니다</li>
+            <li>8. 회복 아이템을 통해 체력을 회복할 수 있습니다</li>
+            <li>9. 점수가 150이 되면 게임에서 승리합니다</li>
+        </ul>
+    </div>
+    <button id="startButton" onclick="startGame()">Start Game</button>
+
+    <div id="gameContainer">
+        <div id="player"></div>
+        <div id="hpDisplay">HP: 10/10</div>
+        <div id="hpBarContainer">
+            <div id="hpBar"></div>
+        </div>
+        <div id="scoreDisplay">Score: 0</div>
+        <div id="expBarContainer">
+            <div id="expBar"></div>
+        </div>
+        <div id="winMessage">승리!</div>
+        <div id="joystick">
+            <div id="joystickHandle"></div>
+        </div>
+    </div>
+
+    <div id="overlay"></div>
+
+    <div id="choiceContainer">
+        <h3>Choose an Upgrade</h3>
+        <button id="choice1" onclick="chooseOption(1)"></button>
+        <button id="choice2" onclick="chooseOption(2)"></button>
+        <button id="choice3" onclick="chooseOption(3)"></button>
+    </div>
+
+    <footer>
+        <p>© 2024 게임회사</p>
+    </footer>
+
+    <script>
+        // 주요 게임 변수 선언
+        let player;
+        let gameContainer;
+        let hpDisplay;
+        let hpBar;
+        let scoreDisplay;
+        let expBar;
+        let choiceContainer;
+        let overlay;
+        let winMessage;
+        let joystick;
+        let joystickHandle;
+        let keys = {};
+        let playerStep = 3; // 이동 속도 초기값
+        let enemyStep = 1; // 적 속도 초기값
+        const enemies = [];
+        let bullets = [];
+        let bulletSpeed = 5; // 총알 속도 초기값
+        let bulletInterval = 500; // 총알 발사 간격 초기값
+        let maxBullets = 1; // 초기 총알 개수
+        let bulletDamage = 1; // 초기 총알 공격력
+        let playerHP = 10; // 플레이어 초기 HP
+        let playerMaxHP = 10; // 플레이어 초기 최대 HP
+        let score = 0;
+        let isInvincible = false; // 무적 상태 플래그
+        let enemyHP = 3; // 적 초기 HP
+        let enemyAttack = 2; // 적 초기 공격력
+        let healthItems = [];
+        let pauseGame = false; // 게임 일시정지 플래그
+        const scoreMilestones = [5, 15, 30, 50, 75, 105]; // 업그레이드 마일스톤
+        const choices = ["공격력 증가", "공격 속도 증가", "체력 증가", "총알 속도 증가", "총알 개수 증가", "이동 속도 증가"];
+        const activeChoices = [];
+        let spawnEnemyInterval = 4500; // 적 생성 간격 초기값
+        let expGained = 0; // 누적 경험치
+        let expBarMax = 5; // 경험치 바 최대 값 초기값
+        let joystickActive = false; // 조이스틱 활성화 플래그
+        let joystickStartX, joystickStartY; // 조이스틱 시작 위치
+
+        // 게임 시작 함수
+        function startGame() {
+            const startButton = document.getElementById('startButton');
+            const instructions = document.getElementById('instructions');
+            startButton.style.display = 'none';  // 버튼 숨기기
+            instructions.style.display = 'none'; // 설명글 숨기기
+
+            // 게임 요소 초기화
+            gameContainer = document.getElementById('gameContainer');
+            player = document.getElementById('player');
+            hpDisplay = document.getElementById('hpDisplay');
+            hpBar = document.getElementById('hpBar');
+            scoreDisplay = document.getElementById('scoreDisplay');
+            expBar = document.getElementById('expBar');
+            choiceContainer = document.getElementById('choiceContainer');
+            overlay = document.getElementById('overlay');
+            winMessage = document.getElementById('winMessage');
+            joystick = document.getElementById('joystick');
+            joystickHandle = document.getElementById('joystickHandle');
+            gameContainer.style.display = 'block';
+            joystick.style.display = 'block';
+
+            // 키 입력 이벤트 리스너 추가
+            document.addEventListener('keydown', (event) => keys[event.key] = true);
+            document.addEventListener('keyup', (event) => keys[event.key] = false);
+            
+            // 조이스틱 이벤트 리스너 추가
+            joystick.addEventListener('mousedown', startJoystick);
+            document.addEventListener('mouseup', endJoystick);
+            document.addEventListener('mousemove', moveJoystick);
+            joystick.addEventListener('touchstart', startJoystick);
+            document.addEventListener('touchend', endJoystick);
+            document.addEventListener('touchmove', moveJoystick);
+
+            // 적 캐릭터 생성
+            spawnEnemies();
+
+            // 자동으로 총알 발사
+            setInterval(() => {
+                if (!pauseGame) {
+                    for (let i = 0; i < maxBullets; i++) {
+                        setTimeout(shootBullet, i * 50);
+                    }
+                }
+            }, bulletInterval);
+
+            // 일정 시간 간격으로 적 생성
+            setInterval(() => {
+                if (!pauseGame) {
+                    spawnEnemies();
+                }
+            }, spawnEnemyInterval);
+
+            // 간헐적으로 회복 아이템 생성
+            setInterval(() => {
+                if (!pauseGame) {
+                    spawnHealthItem();
+                }
+            }, 15000);
+
+            // 게임 업데이트 루프 시작
+            requestAnimationFrame(updateGame);
+        }
+
+        // 조이스틱 시작 함수
+        function startJoystick(event) {
+            joystickActive = true;
+            joystickStartX = event.clientX || event.touches[0].clientX;
+            joystickStartY = event.clientY || event.touches[0].clientY;
+        }
+
+        // 조이스틱 종료 함수
+        function endJoystick() {
+            joystickActive = false;
+            joystickHandle.style.top = '25px';
+            joystickHandle.style.left = '25px';
+        }
+
+        // 조이스틱 이동 함수
+        function moveJoystick(event) {
+            if (!joystickActive) return;
+            const clientX = event.clientX || event.touches[0].clientX;
+            const clientY = event.clientY || event.touches[0].clientY;
+            let dx = clientX - joystickStartX;
+            let dy = clientY - joystickStartY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxDistance = 50;
+
+            if (distance > maxDistance) {
+                const angle = Math.atan2(dy, dx);
+                dx = Math.cos(angle) * maxDistance;
+                dy = Math.sin(angle) * maxDistance;
+            }
+
+            joystickHandle.style.left = 25 + dx + 'px';
+            joystickHandle.style.top = 25 + dy + 'px';
+
+            keys['w'] = dy < -10;
+            keys['a'] = dx < -10;
+            keys['s'] = dy > 10;
+            keys['d'] = dx > 10;
+        }
+
+        // 적 캐릭터 생성 함수
+        function spawnEnemies() {
+            for (let i = 0; i < 4; i++) {
+                spawnEnemy();
+            }
+        }
+
+        // 단일 적 캐릭터 생성 함수
+        function spawnEnemy() {
+            const enemy = document.createElement('div');
+            enemy.classList.add('enemy');
+            enemy.style.position = 'absolute';
+            enemy.style.width = '30px';
+            enemy.style.height = '30px';
+            enemy.style.backgroundColor = 'red';
+            enemy.style.border = '2px solid darkred';
+            enemy.style.borderRadius = '50%';
+
+            // 적 캐릭터를 맵의 가장자리에서 생성
+            const edge = Math.floor(Math.random() * 4);
+            if (edge === 0) {
+                enemy.style.top = '0px';
+                enemy.style.left = Math.random() * 720 + 'px';
+            } else if (edge === 1) {
+                enemy.style.top = '720px';
+                enemy.style.left = Math.random() * 720 + 'px';
+            } else if (edge === 2) {
+                enemy.style.left = '0px';
+                enemy.style.top = Math.random() * 720 + 'px';
+            } else {
+                enemy.style.left = '720px';
+                enemy.style.top = Math.random() * 720 + 'px';
+            }
+
+            enemy.hp = enemyHP;
+            enemy.attack = enemyAttack;
+
+            // 적 HP 바 생성
+            const hpBar = document.createElement('div');
+            hpBar.classList.add('hpBar');
+            hpBar.style.width = '100%';
+            hpBar.style.height = '4px';
+            hpBar.style.backgroundColor = 'green';
+            hpBar.style.position = 'absolute';
+            hpBar.style.top = '-10px';
+            enemy.appendChild(hpBar);
+
+            gameContainer.appendChild(enemy);
+            enemies.push(enemy);
+        }
+
+        // 회복 아이템 생성 함수
+        function spawnHealthItem() {
+            const healthItem = document.createElement('div');
+            healthItem.classList.add('healthItem');
+            healthItem.style.position = 'absolute';
+            healthItem.style.width = '20px';
+            healthItem.style.height = '20px';
+            healthItem.style.backgroundColor = 'green';
+            healthItem.style.borderRadius = '50%';
+            healthItem.style.top = Math.random() * 730 + 'px';
+            healthItem.style.left = Math.random() * 730 + 'px';
+
+            gameContainer.appendChild(healthItem);
+            healthItems.push(healthItem);
+        }
+
+        // 게임 업데이트 함수
+        function updateGame() {
+            if (pauseGame) return;
+
+            const playerPos = player.getBoundingClientRect();
+            const containerPos = gameContainer.getBoundingClientRect();
+
+            // 플레이어 이동 처리
+            if (keys['w'] && playerPos.top > containerPos.top) {
+                player.style.top = player.offsetTop - playerStep + 'px';
+            }
+            if (keys['a'] && playerPos.left > containerPos.left) {
+                player.style.left = player.offsetLeft - playerStep + 'px';
+            }
+            if (keys['s'] && playerPos.bottom < containerPos.bottom) {
+                player.style.top = player.offsetTop + playerStep + 'px';
+            }
+            if (keys['d'] && playerPos.right < containerPos.right) {
+                player.style.left = player.offsetLeft + playerStep + 'px';
+            }
+
+            // 적 이동 및 충돌 처리
+            enemies.forEach((enemy, index) => {
+                const enemyPos = enemy.getBoundingClientRect();
+                const dx = playerPos.left - enemyPos.left;
+                const dy = playerPos.top - enemyPos.top;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const vx = (dx / dist) * enemyStep;
+                const vy = (dy / dist) * enemyStep;
+                enemy.style.left = enemy.offsetLeft + vx + 'px';
+                enemy.style.top = enemy.offsetTop + vy + 'px';
+
+                // 적 HP 바 업데이트
+                const hpBar = enemy.querySelector('.hpBar');
+                hpBar.style.width = `${(enemy.hp / enemyHP) * 100}%`;
+
+                // 플레이어와 충돌 검사
+                if (
+                    !isInvincible &&
+                    playerPos.left < enemyPos.right &&
+                    playerPos.right > enemyPos.left &&
+                    playerPos.top < enemyPos.bottom &&
+                    playerPos.bottom > enemyPos.top
+                ) {
+                    playerHP -= enemy.attack;
+                    updateHPDisplay();
+                    showDamage(enemy.attack, playerPos.left - 320, playerPos.top, 'purple');
+
+                    if (playerHP <= 0) {
+                        alert('Game Over');
+                        window.location.reload();
+                    } else {
+                        activateInvincibility();
+                    }
+                }
+            });
+
+            // 총알 이동 및 충돌 처리
+            bullets.forEach((bullet, index) => {
+                bullet.style.left = bullet.offsetLeft + bullet.vx + 'px';
+                bullet.style.top = bullet.offsetTop + bullet.vy + 'px';
+
+                const bulletPos = bullet.getBoundingClientRect();
+                if (
+                    bulletPos.left < containerPos.left ||
+                    bulletPos.right > containerPos.right ||
+                    bulletPos.top < containerPos.top ||
+                    bulletPos.bottom > containerPos.bottom
+                ) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                }
+
+                // 적과의 충돌 검사
+                enemies.forEach((enemy, enemyIndex) => {
+                    const enemyPos = enemy.getBoundingClientRect();
+                    if (
+                        bulletPos.left < enemyPos.right &&
+                        bulletPos.right > enemyPos.left &&
+                        bulletPos.top < enemyPos.bottom &&
+                        bulletPos.bottom > enemyPos.top
+                    ) {
+                        enemy.hp -= bulletDamage;
+                        bullet.remove();
+                        bullets.splice(index, 1);
+                        showDamage(bulletDamage, bulletPos.left - 320, bulletPos.top + 10, 'orange'); 
+
+                        if (enemy.hp <= 0) {
+                            enemy.remove();
+                            enemies.splice(enemyIndex, 1);
+                            score += 1; // 점수 증가
+                            expGained += 1;
+                            updateScoreDisplay();
+                            if (expGained >= expBarMax) {
+                                expGained = 0;
+                                expBarMax = Math.min(expBarMax + 5, 30); 
+                                spawnEnemyInterval = Math.max(500, spawnEnemyInterval - 500); 
+                                enemyAttack += 1; // 레벨업 시 적 공격력 증가
+                                checkForMilestone();
+                            }
+                            if (score % 10 === 0) {
+                                enemyHP += 1; // 점수가 10 오를 때마다 적 HP 증가
+                            }
+                            if (score >= 150) {
+                                pauseGame = true;
+                                winMessage.style.display = 'block';
+                            }
+                        }
+                    }
+                });
+            });
+
+            // 플레이어와 회복 아이템 충돌 검사
+            healthItems.forEach((item, index) => {
+                const itemPos = item.getBoundingClientRect();
+                if (
+                    playerPos.left < itemPos.right &&
+                    playerPos.right > itemPos.left &&
+                    playerPos.top < itemPos.bottom &&
+                    playerPos.bottom > itemPos.top
+                ) {
+                    playerHP = Math.min(playerHP + 1, playerMaxHP); // HP 회복, 최대 체력까지
+                    updateHPDisplay();
+                    item.remove();
+                    healthItems.splice(index, 1);
+                }
+            });
+
+            requestAnimationFrame(updateGame);
+        }
+
+        // 총알 발사 함수
+        function shootBullet() {
+            if (enemies.length === 0) return;
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            bullet.style.position = 'absolute';
+            bullet.style.width = '10px';
+            bullet.style.height = '10px';
+            bullet.style.backgroundColor = 'white';
+            bullet.style.borderRadius = '50%';
+            bullet.style.top = player.offsetTop + 20 + 'px'; // 플레이어의 중앙에서 발사
+            bullet.style.left = player.offsetLeft + 20 + 'px';
+
+            const closestEnemy = getClosestEnemy();
+            if (!closestEnemy) return;
+
+            const playerPos = player.getBoundingClientRect();
+            const enemyPos = closestEnemy.getBoundingClientRect();
+            const dx = enemyPos.left - playerPos.left;
+            const dy = enemyPos.top - playerPos.top;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            bullet.vx = (dx / dist) * bulletSpeed;
+            bullet.vy = (dy / dist) * bulletSpeed;
+
+            gameContainer.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        // 가장 가까운 적 찾기 함수
+        function getClosestEnemy() {
+            let minDist = Infinity;
+            let closestEnemy = null;
+
+            const playerPos = player.getBoundingClientRect();
+            enemies.forEach(enemy => {
+                const enemyPos = enemy.getBoundingClientRect();
+                const dx = enemyPos.left - playerPos.left;
+                const dy = enemyPos.top - playerPos.top;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestEnemy = enemy;
+                }
+            });
+
+            return closestEnemy;
+        }
+
+        // HP 디스플레이 업데이트 함수
+        function updateHPDisplay() {
+            hpDisplay.textContent = `HP: ${playerHP}/${playerMaxHP}`;
+            hpBar.style.width = `${(playerHP / playerMaxHP) * 100}%`;
+        }
+
+        // 점수 디스플레이 업데이트 함수
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score}`;
+            expBar.style.width = `${(expGained / expBarMax) * 100}%`; // 경험치 바 업데이트
+        }
+
+        // 무적 상태 활성화 함수
+        function activateInvincibility() {
+            isInvincible = true;
+            player.style.opacity = 0.5;
+
+            // 플레이어 점멸 효과
+            const blinkInterval = setInterval(() => {
+                player.style.opacity = player.style.opacity == 1 ? 0.5 : 1;
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(blinkInterval);
+                isInvincible = false;
+                player.style.opacity = 1;
+            }, 500);
+        }
+
+        // 데미지 표시 함수
+        function showDamage(damage, x, y, color) {
+            const damageText = document.createElement('div');
+            damageText.style.position = 'absolute';
+            damageText.style.left = x + 'px';
+            damageText.style.top = y + 'px';
+            damageText.style.color = color;
+            damageText.style.fontSize = '20px';
+            damageText.style.fontWeight = 'bold';
+            damageText.style.transform = 'translate(-50%, -50%)';
+            damageText.textContent = `-${damage}`;
+
+            gameContainer.appendChild(damageText);
+
+            setTimeout(() => {
+                damageText.remove();
+            }, 1000);
+        }
+
+        // 마일스톤 체크 함수
+        function checkForMilestone() {
+            if (scoreMilestones.includes(score)) {
+                pauseGame = true;
+                overlay.style.display = 'block';
+                displayChoices();
+            }
+        }
+
+        // 업그레이드 선택지 표시 함수
+        function displayChoices() {
+            choiceContainer.style.display = 'block';
+            activeChoices.length = 0;
+            const shuffledChoices = choices.sort(() => 0.5 - Math.random());
+            activeChoices.push(...shuffledChoices.slice(0, 3));
+            document.getElementById('choice1').textContent = activeChoices[0];
+            document.getElementById('choice2').textContent = activeChoices[1];
+            document.getElementById('choice3').textContent = activeChoices[2];
+        }
+
+        // 업그레이드 선택 함수
+        function chooseOption(choiceIndex) {
+            const choice = activeChoices[choiceIndex - 1];
+            switch (choice) {
+                case "공격력 증가":
+                    bulletDamage += 1;
+                    break;
+                case "공격 속도 증가":
+                    bulletInterval = Math.max(100, bulletInterval - 100); // 100ms 단위로 증가
+                    break;
+                case "체력 증가":
+                    playerMaxHP += 1;
+                    playerHP = Math.min(playerHP + 1, playerMaxHP);
+                    updateHPDisplay();
+                    break;
+                case "총알 속도 증가":
+                    bulletSpeed += 1;
+                    break;
+                case "총알 개수 증가":
+                    maxBullets += 1;
+                    break;
+                case "이동 속도 증가":
+                    playerStep += 1;
+                    break;
+            }
+            choiceContainer.style.display = 'none';
+            overlay.style.display = 'none';
+            pauseGame = false;
+            requestAnimationFrame(updateGame);
+        }
+    </script>
+</body>
+</html>
